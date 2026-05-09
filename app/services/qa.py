@@ -8,6 +8,7 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 def build_context(search_results: List[tuple[float, Dict[str, Any]]]) -> str:
     blocks = []
+    search_results = search_results[:3]
 
     for i, (score, metadata) in enumerate(search_results, start=1):
         blocks.append(
