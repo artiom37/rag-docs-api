@@ -1,7 +1,7 @@
 from typing import List
 
 
-def chunk_text(text: str, chunk_size: int = 1200, overlap: int = 200) -> List[str]:
+def chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> List[str]:
     if not text.strip():
         return []
 

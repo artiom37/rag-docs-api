@@ -28,74 +28,113 @@ def health():
 
 @app.post("/ingest")
 def ingest(request: IngestRequest):
-    
-    logger.info("Ingest request received: file_path=%s", request.file_path)
-
     try:
-        text = load_document(request.file_path)
-        chunks = chunk_text(text)
-        logger.info("Document loaded: chunks=%s", len(chunks))
+        logger.info("Ingest request received: file_path=%s", request.file_paths)
 
-        if not chunks:
-            raise HTTPException(status_code=400, detail="No text found in document.")
+        total_chunks = 0
+        ingested_docs = []
 
-        embeddings = create_embeddings(chunks)
-        logger.info("Embeddings created: count=%s", len(embeddings))
+        for file_path in request.file_paths:
+            logger.info("Ingesting document: file_path=%s", file_path)
 
-        doc_id = Path(request.file_path).name
+            text = load_document(file_path)
+            chunks = chunk_text(text)
 
-        metadata = [
-            {
-                "doc_id": doc_id,
-                "chunk_id": f"{doc_id}-chunk-{i}",
-                "text": chunk,
-            }
-            for i, chunk in enumerate(chunks)
-        ]
+            if not chunks:
+                logger.warning("Skipping document with no extractable text: file_path=%s", file_path)
+                continue
 
-        vector_store.add(embeddings, metadata)
+            embeddings = create_embeddings(chunks)
+            doc_id = Path(file_path).name
+
+            metadata = [
+                {
+                    "doc_id": doc_id,
+                    "chunk_id": f"{doc_id}-chunk-{i}",
+                    "text": chunk,
+                }
+                for i, chunk in enumerate(chunks)
+            ]
+
+            vector_store.add(embeddings, metadata)
+
+            total_chunks += len(chunks)
+            ingested_docs.append(doc_id)
+
+            logger.info(
+                "Document ingested successfully: doc_id=%s chunks=%s",
+                doc_id,
+                len(chunks),
+            )
+
+        if total_chunks == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="No chunks were created from the provided documents.",
+            )
 
         return {
-            "message": "Document ingested successfully.",
-            "doc_id": doc_id,
-            "chunks_added": len(chunks),
+            "message": "Documents ingested successfully.",
+            "docs": ingested_docs,
+            "chunks_added": total_chunks,
         }
 
     except FileNotFoundError as e:
+        logger.exception("File not found during ingestion")
         raise HTTPException(status_code=404, detail=str(e))
 
     except ValueError as e:
+        logger.exception("Invalid document during ingestion")
         raise HTTPException(status_code=400, detail=str(e))
-    
+
+    except HTTPException:
+        raise
+
     except Exception as e:
+        logger.exception("Unexpected ingestion error")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/query", response_model=QueryResponse)
 def query(request: QueryRequest):
-    logger.info("Query received: question=%s top_k=%s", request.question, request.top_k)
+    try:
+        logger.info("Query received: question=%s top_k=%s min_score=%s", request.question, request.top_k, request.min_score)
 
-    question_embedding = create_embeddings([request.question])[0]
-    search_results = vector_store.search(question_embedding, top_k=request.top_k)
+        question_embedding = create_embeddings([request.question])[0]
+        search_results = vector_store.search(question_embedding, top_k=request.top_k)
 
-    logger.info("Search completed: results=%s", len(search_results))
+        search_results = [
+            result for result in search_results
+            if result[0] >= request.min_score
+        ]
 
-    if not search_results:
-        return QueryResponse(
-            answer="No documents have been ingested yet.",
-            sources=[],
+        logger.info(
+            "Search completed: question=%s results=%s min_score=%s",
+            request.question,
+            len(search_results),
+            request.min_score,
         )
 
-    answer = answer_question(request.question, search_results)
+        if not search_results:
+            return QueryResponse(
+                answer="I don't know based on the provided documents.",
+                sources=[],
+            )
 
-    sources = [
-        SourceChunk(
-            doc_id=metadata["doc_id"],
-            chunk_id=metadata["chunk_id"],
-            score=score,
-            text=metadata["text"],
-        )
-        for score, metadata in search_results
-    ]
+        answer = answer_question(request.question, search_results)
 
-    return QueryResponse(answer=answer, sources=sources)
+        sources = [
+            SourceChunk(
+                doc_id=metadata["doc_id"],
+                chunk_id=metadata["chunk_id"],
+                score=score,
+                text=metadata["text"],
+            )
+            for score, metadata in search_results
+        ]
+
+        return QueryResponse(answer=answer, sources=sources)
+    
+    except Exception as e:
+        logger.exception("Unexpected query error")
+        raise HTTPException(status_code=500, detail=str(e))
