@@ -71,6 +71,19 @@ class VectorStore:
             results.append((float(score), self.metadata[idx]))
 
         return results
+    
+    def reset(self) -> None:
+        self.index = None
+        self.metadata = []
+
+        index_path = Path(FAISS_INDEX_PATH)
+        metadata_path = Path(METADATA_PATH)
+
+        if index_path.exists():
+            index_path.unlink()
+
+        if metadata_path.exists():
+            metadata_path.unlink()
 
 
 vector_store = VectorStore()

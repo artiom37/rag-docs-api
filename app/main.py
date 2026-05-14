@@ -26,6 +26,21 @@ def health():
     return {"status": "ok"}
 
 
+@app.post("/reset-index")
+def reset_index():
+    try:
+        vector_store.reset()
+        logger.info("Vector index reset successfully")
+
+        return {
+            "message": "Vector index reset successfully.",
+        }
+
+    except Exception as e:
+        logger.exception("Unexpected reset-index error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/ingest")
 def ingest(request: IngestRequest):
     try:
