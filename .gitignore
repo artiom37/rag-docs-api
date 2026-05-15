@@ -3,3 +3,5 @@
 data/index/
 __pycache__/
 *.pyc
+ui/node_modules/
+ui/dist/
