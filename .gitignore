@@ -1,7 +1,11 @@
 .env
 .venv/
-data/index/
 __pycache__/
 *.pyc
+
+data/index/
+
 ui/node_modules/
 ui/dist/
+
+.DS_Store
