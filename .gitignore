@@ -1,11 +1,35 @@
+# Environment
 .env
+.env.*
+!.env.example
+
+# Python
 .venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
+# Local data / generated index
 data/index/
+*.index
 
+# Node / React UI
 ui/node_modules/
 ui/dist/
+ui/.vite/
 
+# OS / editor
 .DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Docker / local runtime
+docker-data/

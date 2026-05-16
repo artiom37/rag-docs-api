@@ -53,6 +53,10 @@ flowchart TD
     L --> M[Answer + Sources]
 ```
 
+![RAG Docs UI](docs/images/rag-ui.png)
+
+![RAG Docs UI](docs/images/rag-ui-idk.png)
+
 ---
 
 ## Query Flow
